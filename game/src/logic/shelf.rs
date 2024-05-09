@@ -1,7 +1,3 @@
-use rand::rngs::StdRng;
-
-use crate::utils::shuffle::shuffle;
-
 use super::item::Item;
 
 #[derive(Clone)]
@@ -10,13 +6,11 @@ pub struct Shelf {
 }
 
 impl Shelf {
-    /// Create a new shelf by shuffling the items
-    pub fn shuffle(self, rng: &mut StdRng) -> Shelf {
-        let mut shelf = self.clone();
-        shuffle(&mut shelf.items, rng);
-        shelf
+    pub fn new(items_n: usize) -> Shelf {
+        Shelf {
+            items: (0..items_n).map(|id| Item::new(id)).collect(),
+        }
     }
-
     /// Exchange the items at the given indices
     pub fn exchange_items(&mut self, idx1: usize, idx2: usize) {
         self.items.swap(idx1, idx2)
@@ -25,5 +19,10 @@ impl Shelf {
     /// Remove the item at the given index
     pub fn remove_item(&mut self, idx: usize) -> Item {
         self.items.remove(idx)
+    }
+
+    /// Get Item Idx by item belongs
+    pub fn get_item_idx_by_belongs(&self, belongs: usize) -> usize {
+        self.items.iter().position(|item| item.belongs_to == belongs).unwrap()
     }
 }
