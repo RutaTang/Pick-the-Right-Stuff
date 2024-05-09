@@ -6,7 +6,9 @@ use crate::utils::shuffle::shuffle;
 
 use super::shelf::Shelf;
 
-//TODO: write engine, the game logic, here
+//TODO:
+// - [] Finish Prompting
+// - [] Finish Interaction
 
 enum Scene {
     Init,           // Start the game, tell the player the game instruction
@@ -31,7 +33,11 @@ enum AgentDecision {
 
 pub fn start() {
     let mut rng = StdRng::seed_from_u64(0);
+
+    // game settings/options
     let agent_n = 3;
+
+    // init the game
     let shelf = Shelf::new(agent_n);
     let mut agent_inmind_shelves = vec![shelf.clone(); agent_n];
     let mut state = State {
@@ -45,7 +51,7 @@ pub fn start() {
             Scene::Init => {
                 // init the game: init agents & items, shuffle the items
                 // tell LLM the game instruction, and current status
-                println!("Welcome to the game!");
+                println!("Welcome to, Be a Warehouse Manager!");
 
                 // change to shuffling state
                 scene = Scene::Shuffling;
@@ -82,15 +88,12 @@ pub fn start() {
                     Some(AgentDecision::Peep { .. }) => {
                         scene = Scene::Peeping;
                     }
-                    None => match rng.gen_range(0..=1) {
-                        0 => {
+                    None => match rng.gen_bool(0.5) {
+                        true => {
                             scene = Scene::Shuffling;
                         }
-                        1 => {
+                        false => {
                             scene = Scene::Peeping;
-                        }
-                        _ => {
-                            panic!("Invalid decision");
                         }
                     },
                 }
@@ -107,8 +110,8 @@ pub fn start() {
                 } else {
                     // shuffle the items or not depends on the random state
                     println!("Shuffling the deck...");
-                    match rng.gen_range(0..=1) {
-                        0 => {
+                    match rng.gen_bool(0.5) {
+                        true => {
                             shuffle(&mut state.shelf.items, &mut rng);
                         }
                         _ => {}
@@ -116,15 +119,12 @@ pub fn start() {
                     // randomly change to one of the following states
                     // 1. DecisionMaking
                     // 2. Shuffling
-                    match rng.gen_range(0..=1) {
-                        0 => {
+                    match rng.gen_bool(0.5) {
+                        true => {
                             scene = Scene::DecisionMaking;
                         }
-                        1 => {
+                        false => {
                             scene = Scene::Shuffling;
-                        }
-                        _ => {
-                            panic!("Invalid decision");
                         }
                     }
                 }
