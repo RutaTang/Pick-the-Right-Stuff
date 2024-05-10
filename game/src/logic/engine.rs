@@ -1,10 +1,15 @@
+use indoc::formatdoc;
 use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
 use rand::Rng;
 use rand::SeedableRng;
 
 use crate::utils::shuffle::shuffle;
+use crate::utils::to_ordinal;
 
-use super::shelf::Shelf;
+use super::agent::AgentCollection;
+use super::agent::Decision;
+use super::locker::Locker;
 
 //TODO:
 // - [] Finish Prompting
@@ -21,90 +26,115 @@ enum Scene {
 
 struct State {
     score: usize,
-    shelf: Shelf,
-    agent_decision: Option<AgentDecision>,
-}
-
-#[derive(Clone, Copy)]
-enum AgentDecision {
-    TakeItem { from: usize },
-    Peep { from: usize },
+    locker: Locker,
+    agents: AgentCollection,
+    agent_decision: Decision,
 }
 
 pub fn start() {
-    let mut rng = StdRng::seed_from_u64(0);
+    let mut rng = StdRng::seed_from_u64(1);
 
     // game settings/options
     let agent_n = 3;
 
     // init the game
-    let shelf = Shelf::new(agent_n);
-    let mut agent_inmind_shelves = vec![shelf.clone(); agent_n];
+    let mut locker = Locker::new(agent_n);
+    let mut agents = AgentCollection::new(agent_n, locker.clone());
+    for i in 0..agent_n {
+        let agent = &mut agents.agents[i];
+        locker.items[i].as_mut().unwrap().belongs_to = agent.id;
+    }
+    for i in 0..agent_n {
+        let agent = &mut agents.agents[i];
+        agent.inmind_locker = locker.clone();
+    }
     let mut state = State {
         score: 0,
-        agent_decision: None,
-        shelf: shelf,
+        agent_decision: Decision::None,
+        agents,
+        locker,
     };
     let mut scene = Scene::Init;
     loop {
         match scene {
             Scene::Init => {
-                // init the game: init agents & items, shuffle the items
-                // tell LLM the game instruction, and current status
-                println!("Welcome to, Be a Warehouse Manager!");
+                let game_introduction = formatdoc! {"
+                    Welcome to, Be a Good Warehouse Manager!
+
+                    In this game, you will play the role of a warehouse manager. The warehouse contains two rooms. one room is used for storing items, with each item stored inside an opaque box in a locker. You are situated in the other room, which contains a monitor that allows you to see the content of each opaque box through cameras inside the opaque boxes. Due to malfunctions in the locker system, it randomly resets the positions of the opaque boxes in the locker from time to time. To ensure that each user retrieves their stored item correctly, when a user comes to retrieve an item, you are required to predict the position of the item the user believes based on their last memory (the user will always retrieve their item based on the location they last noted). You only need to tell the system which locker position the user will go to retrieve their item and then the locker system will automatically swap the item at that location with the one belonging to the user. Additionally, during the game, users may or may not enter your room to check the monitor. By checking the monitor, users will know the correct location of their item.
+
+                    If a user successfully retrieves their item, you score a point and the item is removed from the locker.
+                    If a user retrieves the wrong item, the item is returned, the user contacts the system administrator to take the correct item, and you score no points.
+
+                    Indeed, this is a problematic locker system, but you are hoped to be an excellent warehouse manager!
+                "};
+                let game_begin_info = formatdoc! {"
+                    Game Begins!
+
+                    There are {} agents. {}
+
+                    Now they leave the room.
+                ",
+                agent_n,
+                (|| {
+                    let mut s = String::new();
+                    for agent in state.agents.agents.iter() {
+                        s.push_str(&format!("Agent {} stores its item in {}. ", agent.id, to_ordinal(state.locker.get_item_idx_by_belongs(agent.id) as u32)));
+                    }
+                    s
+                })()
+                };
+
+                let all = formatdoc! {"
+                    {}
+
+                    ============
+
+                    {}
+                ",
+                    game_introduction,
+                    game_begin_info
+                };
+                println!("{}", all);
 
                 // change to shuffling state
                 scene = Scene::Shuffling;
             }
             Scene::DecisionMaking => {
                 // agent should make a decision to (1) take item (2) peep (3) or nothing
-                let agent_idx = rng.gen_range(0..agent_n);
-                let decision: u8 = rng.gen_range(1..=3);
-                match decision {
-                    // Take item
-                    1 => {
-                        state.agent_decision = Some(AgentDecision::TakeItem { from: agent_idx });
-                    }
-                    // Peep
-                    2 => {
-                        state.agent_decision = Some(AgentDecision::Peep { from: agent_idx });
-                    }
-                    // Do nothing
-                    3 => {
-                        state.agent_decision = None;
-                    }
-                    _ => {
-                        panic!("Invalid decision");
-                    }
-                }
+                let agent = state.agents.agents.choose(&mut rng).unwrap();
+                let decision: Decision = Decision::rand_choose(&mut rng, agent.id);
+                state.agent_decision = decision;
+
                 // randomly change to one of the following states
                 // 1. Shuffling (must if agent want to take the item)
                 // 2. Peeping (must if agent want to peep the status of the monitor)
-                // 3. Change to Shuffling or Peeping (if agent do nothing)
-                match state.agent_decision {
-                    Some(AgentDecision::TakeItem { .. }) => {
+                // 3. Change to Shuffling or DecisionMaking (if agent do nothing)
+                match decision {
+                    Decision::TakeItem { .. } => {
                         scene = Scene::Predicting;
                     }
-                    Some(AgentDecision::Peep { .. }) => {
+                    Decision::Peep { .. } => {
                         scene = Scene::Peeping;
                     }
-                    None => match rng.gen_bool(0.5) {
+                    Decision::None => match rng.gen_bool(0.5) {
                         true => {
                             scene = Scene::Shuffling;
                         }
                         false => {
-                            scene = Scene::Peeping;
+                            scene = Scene::DecisionMaking;
                         }
                     },
                 }
             }
             Scene::Shuffling => {
-                if let Some(AgentDecision::TakeItem { from }) = state.agent_decision {
+                if let Decision::TakeItem { from } = state.agent_decision {
                     // agent try to take the item, must shuffle the items
                     println!("Shuffling the deck...");
-                    let agent_in_mind_shelf = &mut agent_inmind_shelves[from];
-                    shuffle(&mut agent_in_mind_shelf.items, &mut rng);
-                    state.shelf = agent_in_mind_shelf.clone();
+                    let agent = state.agents.get_mut_by_id(from).unwrap();
+                    shuffle(&mut agent.inmind_locker.items, &mut rng);
+                    state.locker = agent.inmind_locker.clone();
+                    //TODO: tell LLM current shelf status
                     // change to Predicting state
                     scene = Scene::Predicting;
                 } else {
@@ -112,7 +142,7 @@ pub fn start() {
                     println!("Shuffling the deck...");
                     match rng.gen_bool(0.5) {
                         true => {
-                            shuffle(&mut state.shelf.items, &mut rng);
+                            shuffle(&mut state.locker.items, &mut rng);
                         }
                         _ => {}
                     }
@@ -131,9 +161,9 @@ pub fn start() {
             }
             Scene::Peeping => {
                 // agent is allowed to peep the status of the monitor depends on the random state (1) can peep, (0) can't peep
-                let decision = state.agent_decision.unwrap();
-                let agent_idx = match decision {
-                    AgentDecision::Peep { from } => from,
+                let decision = state.agent_decision;
+                let agent_id = match decision {
+                    Decision::Peep { from } => from,
                     _ => panic!("Invalid decision"),
                 };
                 let request_result: bool = rng.gen_bool(0.5);
@@ -141,15 +171,15 @@ pub fn start() {
                     true => {
                         // agent can peep the status of the monitor
                         println!("Peeping the monitor...");
-                        let agent_in_mind_shelf = &mut agent_inmind_shelves[agent_idx];
-                        agent_in_mind_shelf.items = state.shelf.items.clone();
+                        let agent = state.agents.get_mut_by_id(agent_id).unwrap();
+                        agent.inmind_locker = state.locker.clone();
                     }
                     false => {
                         // agent can't peep the status of the monitor
                         println!("Can't peep the monitor...");
                     }
                 }
-                state.agent_decision = None;
+                state.agent_decision = Decision::None;
 
                 // randomly change to one of the following states
                 //1. Shuffling
@@ -164,37 +194,48 @@ pub fn start() {
                 }
             }
             Scene::Predicting => {
-                let agent_idx = match state.agent_decision.unwrap() {
-                    AgentDecision::TakeItem { from } => from,
+                let agent_id = match state.agent_decision {
+                    Decision::TakeItem { from } => from,
                     _ => panic!("Invalid decision"),
                 };
-                let real_item_idx = state.shelf.get_item_idx_by_belongs(agent_idx);
+                println!("Agent {} is coming...", agent_id);
+                // real item index in the locker
+                let real_item_idx = state.locker.get_item_idx_by_belongs(agent_id);
+                // inmind item index in the locker
+                let inmind_item_idx = state
+                    .agents
+                    .get_mut_by_id(agent_id)
+                    .unwrap()
+                    .inmind_locker
+                    .get_item_idx_by_belongs(agent_id);
                 // ask LLM to make prediction
                 println!("Predicting the agent's action...");
                 let predicted_inmind_item_idx: usize = rng.gen_range(0..agent_n); //TODO: LLM should predict the agent's action
 
-                // move real item to predicted inmind item position
-                state.shelf.exchange_items(real_item_idx, predicted_inmind_item_idx);
-
-                // check if the agent get the correct item
-                let item = state.shelf.items.remove(predicted_inmind_item_idx);
-                if item.belongs_to == agent_idx {
-                    println!("Agent {} get the correct item!", agent_idx);
+                if predicted_inmind_item_idx == inmind_item_idx {
+                    println!(
+                        "Agent {} is taking the item from the correct position.",
+                        agent_id
+                    );
                     state.score += 1;
                 } else {
-                    println!("Agent {} get the wrong item!", agent_idx);
+                    println!(
+                        "Agent {} is taking the item from the wrong position.",
+                        agent_id
+                    );
                 }
-                agent_inmind_shelves.remove(agent_idx);
 
                 //TODO: tell LLM current shelf status
-
-                state.agent_decision = None;
+                state.locker.exchange_items(real_item_idx, inmind_item_idx);
+                state.locker.remove_item(inmind_item_idx);
+                state.agents.remove_by_id(agent_id);
+                state.agent_decision = Decision::None;
 
                 // randomly change to one of the following states
                 //1. Shuffling
-                //2. DecisionMaking 
+                //2. DecisionMaking
                 //3. End (if and only if there is no items left)
-                if agent_inmind_shelves.is_empty() {
+                if state.agents.is_empty() {
                     scene = Scene::End;
                 } else {
                     match rng.gen_bool(0.5) {
@@ -209,7 +250,11 @@ pub fn start() {
             }
             Scene::End => {
                 // tell the final result, and game over
-                println!("Correct: {}; Final score: {}", state.score, state.score * 100 / agent_n);
+                println!(
+                    "Correct: {}; Final score: {}",
+                    state.score,
+                    state.score * 100 / agent_n
+                );
                 println!("Game over!");
                 break;
             }
