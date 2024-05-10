@@ -13,3 +13,11 @@ pub fn to_ordinal(num: u32) -> String {
     };
     format!("{}{}", num, suffix)
 }
+
+pub fn to_number(ordinal: &str) -> Option<u32> {
+    let num_str = ordinal.trim_end_matches(|c: char| !c.is_digit(10));
+    match num_str.parse::<u32>() {
+        Ok(num) => Some(num),
+        Err(_) => None,
+    }
+}
