@@ -1,40 +1,25 @@
-use std::io::{Read, Write};
-use std::net::TcpListener;
+use clap::Parser;
+use game::{cli, logic::engine::start, utils::tcp::{client, server}};
 
-use game::logic::engine;
 
-// Server
-fn server() {
-    let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to bind address");
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                let mut buffer = [0; 1024];
-                stream
-                    .read(&mut buffer)
-                    .expect("Failed to read from stream");
-                let message = String::from_utf8_lossy(&buffer).to_string();
-                let modified_message = format!("Server says: {}", message);
-                stream
-                    .write_all(modified_message.as_bytes())
-                    .expect("Failed to write to stream");
-
-                if message.trim() == "bye" {
-                    break;
-                }
-            }
-            Err(e) => {
-                eprintln!("Error: {}", e);
-            }
-        }
-    }
-}
+// ...
 
 fn main() {
-    // Start the server in a separate thread
-    let server_thread = std::thread::spawn(engine::start);
-
-    // Wait for the server thread to finish
-    server_thread.join().expect("Failed to join server thread");
+    let cli = cli::Cli::parse();
+    match cli.command {
+        Some(cli::Commands::Start { mode }) => {
+            if mode == "server" {
+                let server_thread = std::thread::spawn(||{server(start)});
+                println!("Game server is running!");
+                server_thread.join().expect("Failed to join server thread");
+            } else if mode == "client" {
+                let client_thread = std::thread::spawn(client);
+                println!("Game client is running!");
+                client_thread.join().expect("Failed to join client thread");
+            } else {
+                println!("Invalid mode");
+            }
+        }
+        None => {}
+    }
 }
