@@ -1,6 +1,5 @@
 use std::io;
 use std::io::Read;
-use std::io::Write;
 use std::net::TcpStream;
 
 use indoc::formatdoc;
@@ -10,6 +9,7 @@ use rand::Rng;
 use rand::SeedableRng;
 
 use crate::utils::shuffle::shuffle;
+use crate::utils::tcp::read_until_separator;
 use crate::utils::tcp::write_to_stream;
 use crate::utils::to_ordinal;
 
@@ -249,20 +249,18 @@ pub fn start(mut stream: TcpStream) {
                     .inmind_locker
                     .get_item_idx_by_belongs(agent_id);
                 // ask LLM to make prediction
-                let info =  "You should predict the position of the box the user will go to retrieve their item.\n".to_string();
+                let info = formatdoc! {"
+                    Please input the position of the box the user will go to retrieve their item (e.g. 0, 1, 2...):
+                    "
+                };
                 write_to_stream(&mut stream, info, true).unwrap();
 
                 // get the prediction from the player
-                let mut input = String::new();
-                io::stdin().read_line(&mut input).unwrap();
-                // stream.read_to_string(&mut input).unwrap();
-                let mut predicted_inmind_item_idx: Option<usize> = None;
-                // match std::io::stdin().read_line(&mut input) {
-                //     Ok(_) => {
-                //         predicted_inmind_item_idx = input.trim().parse::<usize>().ok();
-                //     }
-                //     _ => {}
-                // };
+                let info = "[user input]".to_string();
+                write_to_stream(&mut stream, info, true).unwrap();
+                let input = read_until_separator(&mut stream).unwrap();
+                let input = String::from_utf8(input).unwrap();
+                let predicted_inmind_item_idx: Option<usize> = input.trim().parse().ok();
 
                 if predicted_inmind_item_idx.is_some()
                     && predicted_inmind_item_idx.unwrap() as usize == inmind_item_idx
@@ -311,7 +309,8 @@ pub fn start(mut stream: TcpStream) {
                 // tell the final result, and game over
                 let statistics = formatdoc! {
                     "Correct: {}
-                    Final score: {}",
+                    Final score: {}
+                    ",
                     state.score,
                     state.score * 100 / agent_n
                 };
