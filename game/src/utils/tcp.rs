@@ -53,7 +53,7 @@ pub fn client() {
 }
 
 pub fn read_until_separator(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
-    const SEPARATOR: u8 = 0x7e; // ETX (End Of Text) separator byte
+    const SEPARATOR: u8 = 0x7e;
     let mut content_buffer = Vec::new();
 
     // Read data into the buffer until the separator is found
