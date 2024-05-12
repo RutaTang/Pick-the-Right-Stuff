@@ -1,3 +1,4 @@
+/// Locker is a struct that holds a list of items.
 #[derive(Clone)]
 pub struct Locker {
     pub items: Vec<Option<Item>>, // index of the item is the id of the box
@@ -21,13 +22,17 @@ impl Locker {
 
     /// Get Item Idx by item belongs id
     pub fn get_item_idx_by_belongs(&self, belongs: usize) -> usize {
-        self.items.iter().position(|item| item.is_some() && item.as_ref().unwrap().belongs_to == belongs).unwrap()
+        self.items
+            .iter()
+            .position(|item| item.is_some() && item.as_ref().unwrap().belongs_to == belongs)
+            .unwrap()
     }
 }
 
-
+/// Item is a struct that holds the id of the user it belongs to.
 #[derive(Clone)]
 pub struct Item {
+    /// id of the user it belongs to
     pub belongs_to: usize,
 }
 

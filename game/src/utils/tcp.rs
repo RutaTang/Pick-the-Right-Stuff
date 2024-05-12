@@ -34,7 +34,10 @@ pub fn client() {
     let mut stream = TcpStream::connect("127.0.0.1:8080").expect("Failed to connect to server");
 
     loop {
-        let buffer = read_until_separator(&mut stream).expect("Failed to read from stream");
+        let buffer = read_until_separator(&mut stream).unwrap_or_else(|_|{
+            println!("Connection closed");
+            std::process::exit(0);
+        });
         let response = String::from_utf8_lossy(&buffer).to_string();
         let response = response.trim();
         if response.contains("[user input]" ){
@@ -52,6 +55,7 @@ pub fn client() {
     }
 }
 
+/// read_until_separator reads data from the stream until a separator is found, the separator is ox7e which is "~"
 pub fn read_until_separator(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
     const SEPARATOR: u8 = 0x7e;
     let mut content_buffer = Vec::new();
@@ -61,7 +65,8 @@ pub fn read_until_separator(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
         let mut chunk = [0; 1]; // Buffer for reading chunks of data
         let bytes_read = stream.read(&mut chunk).unwrap();
         if bytes_read == 0 {
-            break; // No more data available
+            // return an error if the stream is closed
+            return Err(io::Error::new(io::ErrorKind::Other, "Stream closed"));
         }
 
         // Check for the separator in the chunk and handle partial reads
@@ -75,6 +80,7 @@ pub fn read_until_separator(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
     Ok(content_buffer)
 }
 
+/// write_to_stream writes data to the stream and appends a separator at the end
 pub fn write_to_stream(stream: &mut TcpStream, data: String, end: bool) -> io::Result<()> {
     let mut data = data.as_bytes().to_vec();
     if end {

@@ -11,52 +11,57 @@ use crate::utils::tcp::read_until_separator;
 use crate::utils::tcp::write_to_stream;
 use crate::utils::to_ordinal;
 
-use super::agent::AgentCollection;
-use super::agent::Decision;
+use super::user::UserCollection;
+use super::user::Decision;
 use super::locker::Locker;
 
+/// Scene is an enum that holds the possible scenes in the game.
 enum Scene {
     Init,           // Start the game, tell the player the game instruction
-    DecisionMaking, // Agent should make a decision to (1) take item (2) peep (3) or nothing
+    DecisionMaking, // User should make a decision to (1) take item (2) peep (3) or nothing
     Shuffling,      // Shuffle the deck
-    Peeping,        // Agent peep the status of the monitor
-    Predicting,     // The player predict the agent's action
+    Peeping,        // User peep the status of the monitor
+    Predicting,     // The player predict the user's action
     End,            // tell the final result, and game over
 }
 
+
+/// State is a struct that holds the current state of the game.
 struct State {
     score: usize,
     locker: Locker,
-    agents: AgentCollection,
-    agent_decision: Decision,
+    users: UserCollection,
+    user_decision: Decision,
 }
 
+/// Game Logic
 pub fn start(mut stream: TcpStream) {
     let mut rng = StdRng::seed_from_u64(5);
 
     // game settings/options
-    let agent_n = 3;
+    let user_n = 3;
 
     // init the game
-    let mut locker = Locker::new(agent_n);
-    let mut agents = AgentCollection::new(agent_n, locker.clone());
-    for i in 0..agent_n {
-        let agent = &mut agents.agents[i];
-        locker.items[i].as_mut().unwrap().belongs_to = agent.id;
+    let mut locker = Locker::new(user_n);
+    let mut users = UserCollection::new(user_n, locker.clone());
+    for i in 0..user_n {
+        let user = &mut users.users[i];
+        locker.items[i].as_mut().unwrap().belongs_to = user.id;
     }
-    for i in 0..agent_n {
-        let agent = &mut agents.agents[i];
-        agent.inmind_locker = locker.clone();
+    for i in 0..user_n {
+        let user = &mut users.users[i];
+        user.inmind_locker = locker.clone();
     }
     let mut state = State {
         score: 0,
-        agent_decision: Decision::None,
-        agents,
+        user_decision: Decision::None,
+        users,
         locker,
     };
     let mut scene = Scene::Init;
     loop {
         match scene {
+            // Start the game, tell the player the game instruction and game initial information
             Scene::Init => {
                 let game_introduction = formatdoc! {"
                     Welcome to, Be a Good Warehouse Manager!
@@ -70,14 +75,14 @@ pub fn start(mut stream: TcpStream) {
                 let game_begin_info = formatdoc! {"
                     Game Begins!
 
-                    There are {} agents. {}
+                    There are {} users. {}
 
                     Now they leave the room.",
-                agent_n,
+                user_n,
                 (|| {
                     let mut s = String::new();
-                    for agent in state.agents.agents.iter() {
-                        s.push_str(&format!("Agent {} stores its item in {}. ", agent.id, to_ordinal(state.locker.get_item_idx_by_belongs(agent.id) as u32)));
+                    for user in state.users.users.iter() {
+                        s.push_str(&format!("User {} stores its item in {}. ", user.id, to_ordinal(state.locker.get_item_idx_by_belongs(user.id) as u32)));
                     }
                     s
                 })()
@@ -98,16 +103,16 @@ pub fn start(mut stream: TcpStream) {
                 // change to shuffling state
                 scene = Scene::Shuffling;
             }
+            // User should make a decision among (1) take item (2) peep (3) or nothing
             Scene::DecisionMaking => {
-                // agent should make a decision to (1) take item (2) peep (3) or nothing
-                let agent = state.agents.agents.choose(&mut rng).unwrap();
-                let decision: Decision = Decision::rand_choose(&mut rng, agent.id);
-                state.agent_decision = decision;
+                let user = state.users.users.choose(&mut rng).unwrap();
+                let decision: Decision = Decision::rand_choose(&mut rng, user.id);
+                state.user_decision = decision;
 
                 // randomly change to one of the following states
-                // 1. Shuffling (must if agent want to take the item)
-                // 2. Peeping (must if agent want to peep the status of the monitor)
-                // 3. Change to Shuffling or DecisionMaking (if agent do nothing)
+                // 1. Shuffling (must if user want to take the item)
+                // 2. Peeping (must if user want to peep the status of the monitor)
+                // 3. Change to Shuffling or DecisionMaking (if user do nothing)
                 match decision {
                     Decision::TakeItem { .. } => {
                         scene = Scene::Predicting;
@@ -125,11 +130,12 @@ pub fn start(mut stream: TcpStream) {
                     },
                 }
             }
+            // Locker shuffles the items
             Scene::Shuffling => {
-                if let Decision::TakeItem { from } = state.agent_decision {
-                    // agent try to take the item, must shuffle the items
-                    let agent = state.agents.get_mut_by_id(from).unwrap();
-                    shuffle(&mut agent.inmind_locker.items, &mut rng);
+                if let Decision::TakeItem { from } = state.user_decision {
+                    // user try to take the item, must shuffle the items
+                    let user = state.users.get_mut_by_id(from).unwrap();
+                    shuffle(&mut user.inmind_locker.items, &mut rng);
                     let info = formatdoc! {"
                         Locker is malfunctioning and randomly resetting the positions of the opaque boxes in the locker...
                         Locker has returned to normal.
@@ -149,7 +155,7 @@ pub fn start(mut stream: TcpStream) {
                         })()
                     };
                     write_to_stream(&mut stream, info, true).unwrap();
-                    state.locker = agent.inmind_locker.clone();
+                    state.locker = user.inmind_locker.clone();
                     // change to Predicting state
                     scene = Scene::Predicting;
                 } else {
@@ -192,31 +198,32 @@ pub fn start(mut stream: TcpStream) {
                     }
                 }
             }
+            // User peep the status of the monitor
             Scene::Peeping => {
-                // agent is allowed to peep the status of the monitor depends on the random state (1) can peep, (0) can't peep
-                let decision = state.agent_decision;
-                let agent_id = match decision {
+                // user is allowed to peep the status of the monitor depends on the random state (1) can peep, (0) can't peep
+                let decision = state.user_decision;
+                let user_id = match decision {
                     Decision::Peep { from } => from,
                     _ => panic!("Invalid decision"),
                 };
                 let request_result: bool = rng.gen_bool(0.5);
                 match request_result {
                     true => {
-                        // agent can peep the status of the monitor
+                        // user can peep the status of the monitor
                         let info = format!(
-                            "Agent {} walks into your room and is peeping the monitor...\n",
-                            agent_id
+                            "User {} walks into your room and is peeping the monitor...\n",
+                            user_id
                         );
                         write_to_stream(&mut stream, info, false).unwrap();
-                        let agent = state.agents.get_mut_by_id(agent_id).unwrap();
-                        agent.inmind_locker = state.locker.clone();
+                        let user = state.users.get_mut_by_id(user_id).unwrap();
+                        user.inmind_locker = state.locker.clone();
                         let info =
-                            format!("Agent {} peeped the monitor and left the room.\n", agent_id);
+                            format!("User {} peeped the monitor and left the room.\n", user_id);
                         write_to_stream(&mut stream, info, true).unwrap();
                     }
                     _ => {}
                 }
-                state.agent_decision = Decision::None;
+                state.user_decision = Decision::None;
 
                 // randomly change to one of the following states
                 //1. Shuffling
@@ -230,22 +237,23 @@ pub fn start(mut stream: TcpStream) {
                     }
                 }
             }
+            // The player predict the user's action
             Scene::Predicting => {
-                let agent_id = match state.agent_decision {
+                let user_id = match state.user_decision {
                     Decision::TakeItem { from } => from,
                     _ => panic!("Invalid decision"),
                 };
-                let info = format!("Agent {} is coming to take his/her item...\n", agent_id);
+                let info = format!("User {} is coming to take his/her item...\n", user_id);
                 write_to_stream(&mut stream, info, false).unwrap();
                 // real item index in the locker
-                let real_item_idx = state.locker.get_item_idx_by_belongs(agent_id);
+                let real_item_idx = state.locker.get_item_idx_by_belongs(user_id);
                 // inmind item index in the locker
                 let inmind_item_idx = state
-                    .agents
-                    .get_mut_by_id(agent_id)
+                    .users
+                    .get_mut_by_id(user_id)
                     .unwrap()
                     .inmind_locker
-                    .get_item_idx_by_belongs(agent_id);
+                    .get_item_idx_by_belongs(user_id);
                 // ask LLM to make prediction
                 let info = formatdoc! {"
                     You should answer the position of the box the user will go to retrieve their item (e.g. 0 for the 0th box, 1 for the 1st box, 2 for 2nd box...): [user input]"
@@ -253,7 +261,7 @@ pub fn start(mut stream: TcpStream) {
                 write_to_stream(&mut stream, info, true).unwrap();
 
                 // get the prediction from the player
-                let input = read_until_separator(&mut stream).unwrap();
+                let input = read_until_separator(&mut stream).expect("Failed to read from stream");
                 let input = String::from_utf8(input).unwrap();
                 let predicted_inmind_item_idx: Option<usize> = input.trim().parse().ok();
 
@@ -264,7 +272,7 @@ pub fn start(mut stream: TcpStream) {
                         "Your prediction is corret! Item in Box {} is exchanged with the correct item in Box {}. User {} successfully retrive the item from the correct position. You score a point!\n",
                         to_ordinal(inmind_item_idx as u32),
                         to_ordinal(real_item_idx as u32),
-                        agent_id
+                        user_id
                     );
                     write_to_stream(&mut stream, info, true).unwrap();
                     state.score += 1;
@@ -273,21 +281,21 @@ pub fn start(mut stream: TcpStream) {
                         "Your prediction is wrong! Administrator is intervening... Item in Box {} is exchanged with the correct item in Box {}. User {} retrieve the item with the help of the administrator. You score no point.\n",
                         to_ordinal(inmind_item_idx as u32),
                         to_ordinal(real_item_idx as u32),
-                        agent_id
+                        user_id
                     );
                     write_to_stream(&mut stream, info, true).unwrap();
                 }
 
                 state.locker.exchange_items(real_item_idx, inmind_item_idx);
                 state.locker.remove_item(inmind_item_idx);
-                state.agents.remove_by_id(agent_id);
-                state.agent_decision = Decision::None;
+                state.users.remove_by_id(user_id);
+                state.user_decision = Decision::None;
 
                 // randomly change to one of the following states
                 //1. Shuffling
                 //2. DecisionMaking
                 //3. End (if and only if there is no items left)
-                if state.agents.is_empty() {
+                if state.users.is_empty() {
                     scene = Scene::End;
                 } else {
                     match rng.gen_bool(0.5) {
@@ -300,6 +308,7 @@ pub fn start(mut stream: TcpStream) {
                     }
                 }
             }
+            // tell the final result, and game over
             Scene::End => {
                 // tell the final result, and game over
                 let statistics = formatdoc! {
@@ -307,7 +316,7 @@ pub fn start(mut stream: TcpStream) {
                     Final score: {}
                     ",
                     state.score,
-                    state.score * 100 / agent_n
+                    state.score * 100 / user_n
                 };
                 write_to_stream(&mut stream, statistics, false).unwrap();
                 write_to_stream(&mut stream, "Game Over!".to_string(), true).unwrap();
