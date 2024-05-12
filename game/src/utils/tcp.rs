@@ -36,17 +36,18 @@ pub fn client() {
     loop {
         let buffer = read_until_separator(&mut stream).expect("Failed to read from stream");
         let response = String::from_utf8_lossy(&buffer).to_string();
-        if response == "[user input]" {
-            println!("Enter your input: ");
+        let response = response.trim();
+        if response.contains("[user input]" ){
+            let response = response.replace("[user input]", "");
+            println!("{}", response);
             let mut input = String::new();
             io::stdin().read_line(&mut input).unwrap();
-            println!("Sending: {}", input);
             write_to_stream(&mut stream, input, true).unwrap();
         } else if response.contains("Game Over!") {
-            println!("{}", response);
+            println!("{}\n", response);
             break;
         } else {
-            println!("{}", response);
+            println!("{}\n", response);
         }
     }
 }

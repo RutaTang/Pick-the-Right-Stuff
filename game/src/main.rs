@@ -2,7 +2,7 @@ use clap::Parser;
 use game::{cli, logic::engine::start, utils::tcp::{client, server}};
 
 
-// ...
+// TODO: play and optimize the game
 
 fn main() {
     let cli = cli::Cli::parse();

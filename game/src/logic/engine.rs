@@ -1,5 +1,3 @@
-use std::io;
-use std::io::Read;
 use std::net::TcpStream;
 
 use indoc::formatdoc;
@@ -250,14 +248,11 @@ pub fn start(mut stream: TcpStream) {
                     .get_item_idx_by_belongs(agent_id);
                 // ask LLM to make prediction
                 let info = formatdoc! {"
-                    Please input the position of the box the user will go to retrieve their item (e.g. 0, 1, 2...):
-                    "
+                    You should answer the position of the box the user will go to retrieve their item (e.g. 0 for the 0th box, 1 for the 1st box, 2 for 2nd box...): [user input]"
                 };
                 write_to_stream(&mut stream, info, true).unwrap();
 
                 // get the prediction from the player
-                let info = "[user input]".to_string();
-                write_to_stream(&mut stream, info, true).unwrap();
                 let input = read_until_separator(&mut stream).unwrap();
                 let input = String::from_utf8(input).unwrap();
                 let predicted_inmind_item_idx: Option<usize> = input.trim().parse().ok();
