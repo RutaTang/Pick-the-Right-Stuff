@@ -57,7 +57,7 @@ pub fn client() {
 
 /// read_until_separator reads data from the stream until a separator is found, the separator is ox7e which is "~"
 pub fn read_until_separator(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
-    const SEPARATOR: u8 = 0x7e;
+    const SEPARATOR: u8 = 0x03;
     let mut content_buffer = Vec::new();
 
     // Read data into the buffer until the separator is found
@@ -84,7 +84,7 @@ pub fn read_until_separator(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
 pub fn write_to_stream(stream: &mut TcpStream, data: String, end: bool) -> io::Result<()> {
     let mut data = data.as_bytes().to_vec();
     if end {
-        data.push(0x7e);
+        data.push(0x03);
     }
     stream.write(&data).unwrap();
     stream.flush().unwrap();
