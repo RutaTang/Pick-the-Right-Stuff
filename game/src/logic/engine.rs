@@ -82,7 +82,7 @@ pub fn start(mut stream: TcpStream) {
                 (|| {
                     let mut s = String::new();
                     for user in state.users.users.iter() {
-                        s.push_str(&format!("User {} stores its item in {}. ", user.id, to_ordinal(state.locker.get_item_idx_by_belongs(user.id) as u32)));
+                        s.push_str(&format!("User {} stores its item in the {} box. ", user.id, to_ordinal(state.locker.get_item_idx_by_belongs(user.id) as u32)));
                     }
                     s
                 })()
@@ -146,9 +146,9 @@ pub fn start(mut stream: TcpStream) {
                             let mut s = String::new();
                             for (i, item) in state.locker.items.iter().enumerate() {
                                 if let Some(item) = item {
-                                    s.push_str(&format!("Box {} stores the item of User {}.\n", to_ordinal(i as u32), to_ordinal(item.belongs_to as u32)));
+                                    s.push_str(&format!("The {} box stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
                                 }else{
-                                    s.push_str(&format!("Box {} is empty.\n", to_ordinal(i as u32)));
+                                    s.push_str(&format!("The {} box is empty.\n", to_ordinal(i as u32)));
                                 }
                             }
                             s
@@ -173,9 +173,9 @@ pub fn start(mut stream: TcpStream) {
                                     let mut s = String::new();
                                     for (i, item) in state.locker.items.iter().enumerate() {
                                         if let Some(item) = item {
-                                            s.push_str(&format!("Box {} stores the item of User {}.\n", to_ordinal(i as u32), to_ordinal(item.belongs_to as u32)));
+                                            s.push_str(&format!("The {} box stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
                                         }else{
-                                            s.push_str(&format!("Box {} is empty.\n", to_ordinal(i as u32)));
+                                            s.push_str(&format!("The {} box is empty.\n", to_ordinal(i as u32)));
                                         }
                                     }
                                     s
@@ -269,7 +269,7 @@ pub fn start(mut stream: TcpStream) {
                     && predicted_inmind_item_idx.unwrap() as usize == inmind_item_idx
                 {
                     let info = format!(
-                        "Your prediction is corret! Item in Box {} is exchanged with the correct item in Box {}. User {} successfully retrive the item from the correct position. You score a point!\n",
+                        "Your prediction is corret! Item in the {} box is exchanged with the correct item in the {} box. User {} successfully retrive the item from the correct position. You score a point!\n",
                         to_ordinal(inmind_item_idx as u32),
                         to_ordinal(real_item_idx as u32),
                         user_id
@@ -278,7 +278,7 @@ pub fn start(mut stream: TcpStream) {
                     state.score += 1;
                 } else {
                     let info = format!(
-                        "Your prediction is wrong! Administrator is intervening... Item in Box {} is exchanged with the correct item in Box {}. User {} retrieve the item with the help of the administrator. You score no point.\n",
+                        "Your prediction is wrong! Administrator is intervening... Item in the {} box is exchanged with the correct item in the {} box. User {} retrieve the item with the help of the administrator. You score no point.\n",
                         to_ordinal(inmind_item_idx as u32),
                         to_ordinal(real_item_idx as u32),
                         user_id
