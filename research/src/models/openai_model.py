@@ -5,6 +5,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionMessage
 from dotenv import load_dotenv, find_dotenv
 import unittest
+
 if __name__ == "__main__":
     from base_model import BaseModel
 else:
@@ -12,13 +13,15 @@ else:
 
 
 class OpenAIModel(BaseModel):
+
     def __init__(self):
+        super().__init__()
         self.client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
         self.model = "gpt-3.5-turbo"
-        self.historical_messages: list[Dict[str,str]] = []
+        self.historical_messages: list[Dict[str, str]] = []
 
-    def chat(self, message: str) -> ChatCompletionMessage:
-        message: ChatCompletionMessage = {
+    def chat(self, message: str) -> Dict[str, str]:
+        message: Dict[str, str] = {
             "role": "user",
             "content": message,
         }
@@ -28,10 +31,10 @@ class OpenAIModel(BaseModel):
             model=self.model,
             max_tokens=10,
         )
-        message = chat_completion.choices[0].message
+        chat_message = chat_completion.choices[0].message
         message = {
             "role": "assistant",
-            "content": message.content,
+            "content": chat_message.content,
         }
         self.historical_messages.append(message)
         return message
