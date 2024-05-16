@@ -7,7 +7,7 @@ use rand::Rng;
 use rand::SeedableRng;
 
 use crate::utils::shuffle::shuffle;
-use crate::utils::tcp::read_until_separator;
+use crate::utils::tcp::{Data, read_until_separator};
 use crate::utils::tcp::write_to_stream;
 use crate::utils::to_ordinal;
 
@@ -98,7 +98,8 @@ pub fn start(mut stream: TcpStream) {
                     game_introduction,
                     game_begin_info
                 };
-                write_to_stream(&mut stream, all, true).unwrap();
+                let data = Data::new(false, all);
+                write_to_stream(&mut stream, data).unwrap();
 
                 // change to shuffling state
                 scene = Scene::Shuffling;
@@ -154,7 +155,8 @@ pub fn start(mut stream: TcpStream) {
                             s
                         })()
                     };
-                    write_to_stream(&mut stream, info, true).unwrap();
+                    let data = Data::new(false, info);
+                    write_to_stream(&mut stream, data).unwrap();
                     state.locker = user.inmind_locker.clone();
                     // change to Predicting state
                     scene = Scene::Predicting;
@@ -181,7 +183,8 @@ pub fn start(mut stream: TcpStream) {
                                     s
                                 })()
                             };
-                            write_to_stream(&mut stream, info, true).unwrap();
+                            let data = Data::new(false, info);
+                            write_to_stream(&mut stream, data).unwrap();
                         }
                         _ => {}
                     }
@@ -210,16 +213,17 @@ pub fn start(mut stream: TcpStream) {
                 match request_result {
                     true => {
                         // user can peep the status of the monitor
-                        let info = format!(
+                        let info1 = format!(
                             "User {} walks into your room and is peeping the monitor...\n",
                             user_id
                         );
-                        write_to_stream(&mut stream, info, false).unwrap();
                         let user = state.users.get_mut_by_id(user_id).unwrap();
                         user.inmind_locker = state.locker.clone();
-                        let info =
+                        let info2 =
                             format!("User {} peeped the monitor and left the room.\n", user_id);
-                        write_to_stream(&mut stream, info, true).unwrap();
+                        let info = format!("{}\n{}", info1, info2);
+                        let data = Data::new(false, info);
+                        write_to_stream(&mut stream, data).unwrap();
                     }
                     _ => {}
                 }
@@ -243,8 +247,7 @@ pub fn start(mut stream: TcpStream) {
                     Decision::TakeItem { from } => from,
                     _ => panic!("Invalid decision"),
                 };
-                let info = format!("User {} is coming to take his/her item...\n", user_id);
-                write_to_stream(&mut stream, info, false).unwrap();
+                let info1 = format!("User {} is coming to take his/her item...\n", user_id);
                 // real item index in the locker
                 let real_item_idx = state.locker.get_item_idx_by_belongs(user_id);
                 // inmind item index in the locker
@@ -255,15 +258,20 @@ pub fn start(mut stream: TcpStream) {
                     .inmind_locker
                     .get_item_idx_by_belongs(user_id);
                 // ask LLM to make prediction
-                let info = formatdoc! {"
-                    You should answer the position of the box the user will go to retrieve their item (e.g. 0 for the 0th box, 1 for the 1st box, 2 for 2nd box...): [user input]"
+                let info2 = formatdoc! {"
+                    You should only answer the position of the box the user will go to retrieve their item (e.g. 0 for the 0th box, 1 for the 1st box, 2 for 2nd box...).
+                    For example, if you think the user will go to the 0th box to retrieve their item, you should only input 0.
+                    Please make your prediction:"
                 };
-                write_to_stream(&mut stream, info, true).unwrap();
+                let info = format!("{}\n{}", info1, info2);
+                let data = Data::new(true, info);
+                write_to_stream(&mut stream, data).unwrap();
 
                 // get the prediction from the player
                 let input = read_until_separator(&mut stream).expect("Failed to read from stream");
                 let input = String::from_utf8(input).unwrap();
-                let predicted_inmind_item_idx: Option<usize> = input.trim().parse().ok();
+                let input = Data::from_json(&input);
+                let predicted_inmind_item_idx: Option<usize> = input.content().trim().parse().ok();
 
                 if predicted_inmind_item_idx.is_some()
                     && predicted_inmind_item_idx.unwrap() as usize == inmind_item_idx
@@ -274,7 +282,8 @@ pub fn start(mut stream: TcpStream) {
                         to_ordinal(real_item_idx as u32),
                         user_id
                     );
-                    write_to_stream(&mut stream, info, true).unwrap();
+                    let data = Data::new(false, info);
+                    write_to_stream(&mut stream, data).unwrap();
                     state.score += 1;
                 } else {
                     let info = format!(
@@ -283,7 +292,8 @@ pub fn start(mut stream: TcpStream) {
                         to_ordinal(real_item_idx as u32),
                         user_id
                     );
-                    write_to_stream(&mut stream, info, true).unwrap();
+                    let data = Data::new(false, info);
+                    write_to_stream(&mut stream, data).unwrap();
                 }
 
                 state.locker.exchange_items(real_item_idx, inmind_item_idx);
@@ -318,8 +328,12 @@ pub fn start(mut stream: TcpStream) {
                     state.score,
                     state.score * 100 / user_n
                 };
-                write_to_stream(&mut stream, statistics, false).unwrap();
-                write_to_stream(&mut stream, "Game Over!".to_string(), true).unwrap();
+                let info = formatdoc! {"
+                    {}
+                    Game Over!
+                ", statistics};
+                let data = Data::new(false, info);
+                write_to_stream(&mut stream, data).unwrap();
                 break;
             }
         }

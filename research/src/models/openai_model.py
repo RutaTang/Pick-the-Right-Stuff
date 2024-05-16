@@ -17,19 +17,20 @@ class OpenAIModel(BaseModel):
     def __init__(self):
         super().__init__()
         self.client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
-        self.model = "gpt-3.5-turbo"
+        self.config = {
+            "model": "gpt-3.5-turbo",
+            "max_tokens": 10,
+        }
         self.historical_messages: list[Dict[str, str]] = []
 
-    def chat(self, message: str) -> Dict[str, str]:
-        message: Dict[str, str] = {
-            "role": "user",
-            "content": message,
-        }
-        self.historical_messages.append(message)
+    def reconfig(self, config: Dict[str, any]):
+        self.config.update(config)
+
+    def chat(self) -> str:
         chat_completion = self.client.chat.completions.create(
-            messages=self.historical_messages + [message],
-            model=self.model,
-            max_tokens=10,
+            messages=self.historical_messages,
+            model=self.config["model"],
+            max_tokens=self.config["max_tokens"],
         )
         chat_message = chat_completion.choices[0].message
         message = {
@@ -37,21 +38,10 @@ class OpenAIModel(BaseModel):
             "content": chat_message.content,
         }
         self.historical_messages.append(message)
-        return message
+        return message["content"]
 
     def get_history(self) -> list[Dict[str, str]]:
         return copy.deepcopy(self.historical_messages)
 
-
-class TestOpenAIModel(unittest.TestCase):
-    def test_chat(self):
-        load_dotenv(find_dotenv())
-        llm = OpenAIModel()
-        message = llm.chat("hello")
-        self.assertTrue(len(message["content"]) > 0)
-        self.assertTrue(len(llm.get_history()) == 2)
-        print(llm.get_history())
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def set_history(self, history: list[Dict[str, str]]):
+        self.historical_messages = history

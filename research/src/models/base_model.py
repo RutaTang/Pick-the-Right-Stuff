@@ -7,9 +7,17 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
-    def chat(self, message):
+    def chat(self) -> str:
         pass
 
     @abstractmethod
     def get_history(self) -> list[Dict[str, str]]:
+        pass
+
+    @abstractmethod
+    def set_history(self, history: list[Dict[str, str]]):
+        pass
+
+    @abstractmethod
+    def reconfig(self, config: Dict[str, any]):
         pass

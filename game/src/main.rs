@@ -1,6 +1,9 @@
 use clap::Parser;
 use game::{cli, logic::engine::start, utils::tcp::{client, server}};
 
+//TODO:
+//1. use json for tco communication
+//2. make game complex (zero/finite/infinite history, k-order, vision)
 fn main() {
     let cli = cli::Cli::parse();
     match cli.command {

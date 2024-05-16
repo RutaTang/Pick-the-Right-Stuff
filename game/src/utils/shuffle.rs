@@ -21,7 +21,7 @@ mod tests {
         let mut empty_data: [i32; 0] = [];
         let mut rng = StdRng::seed_from_u64(1);
         shuffle(&mut empty_data, &mut rng);
-        assert_eq!(empty_data, []);
+        assert_eq!(empty_data, [] as [i32; 0]);
 
         // Test with single element
         let mut single_data = [42];
