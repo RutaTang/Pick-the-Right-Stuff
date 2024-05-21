@@ -260,7 +260,7 @@ pub fn start(mut stream: TcpStream) {
                 // ask LLM to make prediction
                 let info2 = formatdoc! {"
                     You should only answer the position of the box the user will go to retrieve their item (e.g. 0 for the 0th box, 1 for the 1st box, 2 for 2nd box...).
-                    For example, if you think the user will go to the 0th box to retrieve their item, you should only input 0.
+                    For example, if you think the user will go to the 0th box to retrieve their item, you should only answer in single number '0'.
                     Please make your prediction:"
                 };
                 let info = format!("{}\n{}", info1, info2);
