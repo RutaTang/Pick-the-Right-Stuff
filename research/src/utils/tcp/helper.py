@@ -1,5 +1,24 @@
+import json
+
+
+class Data:
+    def __init__(self, require_input: bool, content: str):
+        self.require_input = require_input
+        self.content = content
+
+    def to_dict(self):
+        return {
+            "require_input": self.require_input,
+            "content": self.content
+        }
+
+    @staticmethod
+    def from_dict(data: dict):
+        return Data(data["require_input"], data["content"])
+
+
 def read_until_separator(client_socket):
-    SEPARATOR = 0x03
+    SEPARATOR = 0x0a
     content_buffer = bytearray()
 
     while True:
@@ -15,8 +34,8 @@ def read_until_separator(client_socket):
     return content_buffer
 
 
-def write_to_stream(client_socket, data, end):
-    data = data.encode()
-    if end:
-        data += bytes([0x03])
+def write_to_stream(client_socket, data: Data):
+    data = data.to_dict()
+    data = json.dumps(data).encode()
+    data += bytes([0x0a])
     client_socket.sendall(data)
