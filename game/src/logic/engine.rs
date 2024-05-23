@@ -29,7 +29,7 @@ enum Scene {
 /// State is a struct that holds the current state of the game.
 struct State {
     score: usize,
-    locker: Locker,
+    locker_snapshots: Vec<Locker>,
     users: UserCollection,
     user_decision: Decision,
 }
@@ -56,7 +56,7 @@ pub fn start(mut stream: TcpStream) {
         score: 0,
         user_decision: Decision::None,
         users,
-        locker,
+        locker_snapshots: vec![locker],
     };
     let mut scene = Scene::Init;
     loop {
@@ -82,7 +82,7 @@ pub fn start(mut stream: TcpStream) {
                 (|| {
                     let mut s = String::new();
                     for user in state.users.users.iter() {
-                        s.push_str(&format!("User {} stores its item in the {} box. ", user.id, to_ordinal(state.locker.get_item_idx_by_belongs(user.id) as u32)));
+                        s.push_str(&format!("User {} stores its item in the {} box. ", user.id, to_ordinal(state.locker_snapshots.last().unwrap().get_item_idx_by_belongs(user.id) as u32)));
                     }
                     s
                 })()
@@ -136,7 +136,10 @@ pub fn start(mut stream: TcpStream) {
                 if let Decision::TakeItem { from } = state.user_decision {
                     // user try to take the item, must shuffle the items
                     let user = state.users.get_mut_by_id(from).unwrap();
-                    shuffle(&mut user.inmind_locker.items, &mut rng);
+                    let mut user_current_inmind_locker = user.inmind_locker.clone();
+                    shuffle(&mut user_current_inmind_locker.items, &mut rng);
+                    state.locker_snapshots.push(user_current_inmind_locker.clone());
+                    let last_snapshot = state.locker_snapshots.last().unwrap();
                     let info = formatdoc! {"
                         Locker is malfunctioning and randomly resetting the positions of the opaque boxes in the locker...
                         Locker has returned to normal.
@@ -145,7 +148,7 @@ pub fn start(mut stream: TcpStream) {
                         ",
                         (|| {
                             let mut s = String::new();
-                            for (i, item) in state.locker.items.iter().enumerate() {
+                            for (i, item) in last_snapshot.items.iter().enumerate() {
                                 if let Some(item) = item {
                                     s.push_str(&format!("The {} box stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
                                 }else{
@@ -157,14 +160,15 @@ pub fn start(mut stream: TcpStream) {
                     };
                     let data = Data::new(false, info);
                     write_to_stream(&mut stream, data).unwrap();
-                    state.locker = user.inmind_locker.clone();
                     // change to Predicting state
                     scene = Scene::Predicting;
                 } else {
                     // shuffle the items or not depends on the random state
                     match rng.gen_bool(0.5) {
                         true => {
-                            shuffle(&mut state.locker.items, &mut rng);
+                            let mut last_snapshot = state.locker_snapshots.last().unwrap().clone();
+                            shuffle(&mut last_snapshot.items, &mut rng);
+                            state.locker_snapshots.push(last_snapshot);
                             let info = formatdoc! {"
                                 Locker is malfunctioning and randomly resetting the positions of the opaque boxes in the locker...
                                 Locker has returned to normal.
@@ -173,7 +177,8 @@ pub fn start(mut stream: TcpStream) {
                                 ",
                                 (|| {
                                     let mut s = String::new();
-                                    for (i, item) in state.locker.items.iter().enumerate() {
+                                    let last_snapshot = state.locker_snapshots.last().unwrap();
+                                    for (i, item) in last_snapshot.items.iter().enumerate() {
                                         if let Some(item) = item {
                                             s.push_str(&format!("The {} box stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
                                         }else{
@@ -218,7 +223,7 @@ pub fn start(mut stream: TcpStream) {
                             user_id
                         );
                         let user = state.users.get_mut_by_id(user_id).unwrap();
-                        user.inmind_locker = state.locker.clone();
+                        user.inmind_locker = state.locker_snapshots.last().unwrap().clone();
                         let info2 =
                             format!("User {} peeped the monitor and left the room.\n", user_id);
                         let info = format!("{}\n{}", info1, info2);
@@ -249,7 +254,7 @@ pub fn start(mut stream: TcpStream) {
                 };
                 let info1 = format!("User {} is coming to take his/her item...\n", user_id);
                 // real item index in the locker
-                let real_item_idx = state.locker.get_item_idx_by_belongs(user_id);
+                let real_item_idx = state.locker_snapshots.last().unwrap().get_item_idx_by_belongs(user_id);
                 // inmind item index in the locker
                 let inmind_item_idx = state
                     .users
@@ -296,8 +301,8 @@ pub fn start(mut stream: TcpStream) {
                     write_to_stream(&mut stream, data).unwrap();
                 }
 
-                state.locker.exchange_items(real_item_idx, inmind_item_idx);
-                state.locker.remove_item(inmind_item_idx);
+                state.locker_snapshots.last_mut().unwrap().exchange_items(real_item_idx, inmind_item_idx);
+                state.locker_snapshots.last_mut().unwrap().remove_item(inmind_item_idx);
                 state.users.remove_by_id(user_id);
                 state.user_decision = Decision::None;
 
