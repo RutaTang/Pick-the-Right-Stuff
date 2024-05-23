@@ -43,14 +43,10 @@ pub fn start(mut stream: TcpStream) {
 
     // init the game
     let mut locker = Locker::new(user_n);
-    let mut users = UserCollection::new(user_n, locker.clone());
+    let mut users = UserCollection::new(user_n, 0);
     for i in 0..user_n {
         let user = &mut users.users[i];
         locker.items[i].as_mut().unwrap().belongs_to = user.id;
-    }
-    for i in 0..user_n {
-        let user = &mut users.users[i];
-        user.inmind_locker = locker.clone();
     }
     let mut state = State {
         score: 0,
@@ -136,7 +132,8 @@ pub fn start(mut stream: TcpStream) {
                 if let Decision::TakeItem { from } = state.user_decision {
                     // user try to take the item, must shuffle the items
                     let user = state.users.get_mut_by_id(from).unwrap();
-                    let mut user_current_inmind_locker = user.inmind_locker.clone();
+                    let user_current_inmind_locker_idx = user.inmind_locker_state_idx;
+                    let mut user_current_inmind_locker = state.locker_snapshots[user_current_inmind_locker_idx].clone();
                     shuffle(&mut user_current_inmind_locker.items, &mut rng);
                     state.locker_snapshots.push(user_current_inmind_locker.clone());
                     let last_snapshot = state.locker_snapshots.last().unwrap();
@@ -223,7 +220,7 @@ pub fn start(mut stream: TcpStream) {
                             user_id
                         );
                         let user = state.users.get_mut_by_id(user_id).unwrap();
-                        user.inmind_locker = state.locker_snapshots.last().unwrap().clone();
+                        user.inmind_locker_state_idx = state.locker_snapshots.len() - 1;
                         let info2 =
                             format!("User {} peeped the monitor and left the room.\n", user_id);
                         let info = format!("{}\n{}", info1, info2);
@@ -256,12 +253,8 @@ pub fn start(mut stream: TcpStream) {
                 // real item index in the locker
                 let real_item_idx = state.locker_snapshots.last().unwrap().get_item_idx_by_belongs(user_id);
                 // inmind item index in the locker
-                let inmind_item_idx = state
-                    .users
-                    .get_mut_by_id(user_id)
-                    .unwrap()
-                    .inmind_locker
-                    .get_item_idx_by_belongs(user_id);
+                let inmind_locker_idx = state.users.get_mut_by_id(user_id).unwrap().inmind_locker_state_idx;
+                let inmind_item_idx = state.locker_snapshots[inmind_locker_idx].get_item_idx_by_belongs(user_id);
                 // ask LLM to make prediction
                 let info2 = formatdoc! {"
                     You should only answer the position of the box the user will go to retrieve their item (e.g. 0 for the 0th box, 1 for the 1st box, 2 for 2nd box...).

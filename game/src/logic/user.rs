@@ -1,7 +1,5 @@
 use rand::{rngs::StdRng, Rng};
 
-use super::locker::Locker;
-
 /// Decision is an enum that holds the possible decisions an user can make.
 #[derive(Clone, Copy)]
 pub enum Decision {
@@ -26,14 +24,14 @@ impl Decision {
 #[derive(Clone)]
 pub struct User {
     pub id: usize,
-    pub inmind_locker: Locker,
+    pub inmind_locker_state_idx: usize,
 }
 
 impl User {
-    pub fn new(id: usize, locker: Locker) -> User {
+    pub fn new(id: usize, locker_state_idx:  usize) -> User {
         User {
             id: id,
-            inmind_locker: locker,
+            inmind_locker_state_idx:  locker_state_idx,
         }
     }
 }
@@ -45,9 +43,9 @@ pub struct UserCollection {
 }
 
 impl UserCollection {
-    pub fn new(user_n: usize, locker: Locker) -> UserCollection {
+    pub fn new(user_n: usize, locker_state_idx: usize ) -> UserCollection {
         UserCollection {
-            users: (0..user_n).map(|i| User::new(i, locker.clone())).collect(),
+            users: (0..user_n).map(|i| User::new(i, locker_state_idx)).collect(),
         }
     }
 
