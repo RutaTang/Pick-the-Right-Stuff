@@ -2,7 +2,7 @@ use std::net::TcpStream;
 
 use indoc::formatdoc;
 use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
+use rand::seq::{IteratorRandom, SliceRandom};
 use rand::Rng;
 use rand::SeedableRng;
 
@@ -36,7 +36,7 @@ struct State {
 
 /// Game Logic
 pub fn start(mut stream: TcpStream) {
-    let mut rng = StdRng::seed_from_u64(5);
+    let mut rng = StdRng::seed_from_u64(42);
 
     // game settings/options
     let user_n = 3;
@@ -220,9 +220,12 @@ pub fn start(mut stream: TcpStream) {
                             user_id
                         );
                         let user = state.users.get_mut_by_id(user_id).unwrap();
-                        user.inmind_locker_state_idx = state.locker_snapshots.len() - 1;
+                        let states_len = state.locker_snapshots.len();
+                        let range =user.inmind_locker_state_idx..states_len;
+                        let peeped_state_idx = range.choose(&mut rng).unwrap();
+                        user.inmind_locker_state_idx = peeped_state_idx;
                         let info2 =
-                            format!("User {} peeped the monitor and left the room.\n", user_id);
+                            format!("User {} peeped the last {} state of the monitor and left the room.\n", user_id, states_len - peeped_state_idx -1);
                         let info = format!("{}\n{}", info1, info2);
                         let data = Data::new(false, info);
                         write_to_stream(&mut stream, data).unwrap();
