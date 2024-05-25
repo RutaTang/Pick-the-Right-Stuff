@@ -10,6 +10,7 @@ else:
 
 
 class OllamaModel(BaseModel):
+
     def __init__(self):
         super().__init__()
         self.client = Client()
