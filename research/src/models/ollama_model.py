@@ -1,8 +1,7 @@
 import copy
-import os
 from typing import Dict
-from openai import OpenAI
-
+import ollama
+from ollama import Client
 
 if __name__ == "__main__":
     from base_model import BaseModel
@@ -10,31 +9,30 @@ else:
     from .base_model import BaseModel
 
 
-class OpenAIModel(BaseModel):
-
+class OllamaModel(BaseModel):
     def __init__(self):
         super().__init__()
-        self.client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
+        self.client = Client()
         self.config = {
-            "model": "gpt-3.5-turbo",
+            "model": "llama3:70b-instruct",
             "temperature": 0,
             "max_tokens": 20,
         }
         self.historical_messages: list[Dict[str, str]] = []
 
-    def reconfig(self, config: Dict[str, any]):
-        self.config.update(config)
-
     def chat(self) -> str:
-        chat_completion = self.client.chat.completions.create(
+        chat_completion = self.client.chat(
             messages=self.historical_messages,
             model=self.config["model"],
-            max_tokens=self.config["max_tokens"],
+            options= {
+                "temperature": self.config["temperature"],
+                "num_predict": self.config["max_tokens"]
+            }
         )
-        chat_message = chat_completion.choices[0].message
+        chat_message = chat_completion["message"]["content"]
         message = {
             "role": "assistant",
-            "content": chat_message.content,
+            "content": chat_message,
         }
         self.historical_messages.append(message)
         return message["content"]
@@ -44,3 +42,7 @@ class OpenAIModel(BaseModel):
 
     def set_history(self, history: list[Dict[str, str]]):
         self.historical_messages = history
+
+    def reconfig(self, config: Dict[str, any]):
+        self.config.update(config)
+

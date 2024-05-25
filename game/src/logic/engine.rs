@@ -1,7 +1,7 @@
 use std::net::TcpStream;
 
 use indoc::formatdoc;
-use rand::rngs::StdRng;
+use rand::rngs::{StdRng, ThreadRng};
 use rand::seq::{IteratorRandom, SliceRandom};
 use rand::Rng;
 use rand::SeedableRng;
@@ -36,10 +36,11 @@ struct State {
 
 /// Game Logic
 pub fn start(mut stream: TcpStream) {
-    let mut rng = StdRng::seed_from_u64(42);
+    // let mut rng = StdRng::seed_from_u64(42);
+    let mut rng = ThreadRng::default();
 
     // game settings/options
-    let user_n = 3;
+    let user_n = 5;
 
     // init the game
     let mut locker = Locker::new(user_n);

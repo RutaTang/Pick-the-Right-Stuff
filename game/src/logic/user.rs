@@ -1,4 +1,4 @@
-use rand::{rngs::StdRng, Rng};
+use rand::Rng;
 
 /// Decision is an enum that holds the possible decisions an user can make.
 #[derive(Clone, Copy)]
@@ -9,7 +9,7 @@ pub enum Decision {
 }
 
 impl Decision {
-    pub fn rand_choose(rng: &mut StdRng, from: usize) -> Decision {
+    pub fn rand_choose(rng: &mut impl Rng, from: usize) -> Decision {
         let decision = match rng.gen_range(0..2) {
             0 => Decision::TakeItem { from },
             1 => Decision::Peep { from },
@@ -28,10 +28,10 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(id: usize, locker_state_idx:  usize) -> User {
+    pub fn new(id: usize, locker_state_idx: usize) -> User {
         User {
             id: id,
-            inmind_locker_state_idx:  locker_state_idx,
+            inmind_locker_state_idx: locker_state_idx,
         }
     }
 }
@@ -43,7 +43,7 @@ pub struct UserCollection {
 }
 
 impl UserCollection {
-    pub fn new(user_n: usize, locker_state_idx: usize ) -> UserCollection {
+    pub fn new(user_n: usize, locker_state_idx: usize) -> UserCollection {
         UserCollection {
             users: (0..user_n).map(|i| User::new(i, locker_state_idx)).collect(),
         }
