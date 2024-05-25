@@ -48,6 +48,7 @@ pub fn start(mut stream: TcpStream) {
         let user = &mut users.users[i];
         locker.items[i].as_mut().unwrap().belongs_to = user.id;
     }
+    locker.items.shuffle(&mut rng); // initial shuffle
     let mut state = State {
         score: 0,
         user_decision: Decision::None,
