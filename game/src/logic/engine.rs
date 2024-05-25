@@ -62,7 +62,7 @@ pub fn start(mut stream: TcpStream) {
                 let game_introduction = formatdoc! {"
                     Welcome to, Be a Good Warehouse Manager!
 
-                    In this game, you will play the role of a warehouse manager. The warehouse contains two rooms. one room is used for storing items, with each item stored inside an opaque box in a locker. You are situated in the other room, which contains a monitor that allows you to see the content of each opaque box through cameras inside the opaque boxes. Due to malfunctions in the locker system, it randomly resets the positions of the opaque boxes in the locker from time to time. To ensure that each user retrieves their stored item correctly, when a user comes to retrieve an item, you are required to predict the position of the item the user believes based on their last memory (the user will always retrieve their item based on the location they last noted). You only need to tell the system which locker position the user will go to retrieve their item and then the locker system will automatically swap the item at that location with the one belonging to the user. Additionally, during the game, users may or may not enter your room to check the monitor. By checking the monitor, users will know the correct location of their item.
+                    In this game, you will play the role of a warehouse manager. The warehouse contains three rooms. Room 1 is used for storing items, with each item stored in a certain position inside the opaque locker. You are situated in the Room 2, which contains a monitor that allows you to see the content of the opaque locker located in the Room 1 through the camera inside the opaque locker. Due to malfunctions in the locker system, it randomly resets the positions of the items in the opaque locker from time to time. To ensure that each user retrieves their stored item correctly, when a user comes to retrieve an item, you are required to predict the position of the item the user believes (the user will always retrieve their item based on the position they last noted). You only need to tell the system which locker position the user will go to retrieve their item and then the locker system will automatically swap the item at that location with the one belonging to the user. Additionally, Room 3 contains a screen which will randomly show a certain previous snapshot of the monitor located in Room 2. During the game, users may or may not enter the Room 3 to observe a certain snapshot of the monitor. By observe the snapshot, users will update their belief about the position of their item.
 
                     If a user successfully retrieves their item, you score a point and the item is removed from the locker.
                     If a user retrieves the wrong item, the item is returned, the user contacts the system administrator to take the correct item, and you score no points.
@@ -78,7 +78,7 @@ pub fn start(mut stream: TcpStream) {
                 (|| {
                     let mut s = String::new();
                     for user in state.users.users.iter() {
-                        s.push_str(&format!("User {} stores its item in the {} box. ", user.id, to_ordinal(state.locker_snapshots.last().unwrap().get_item_idx_by_belongs(user.id) as u32)));
+                        s.push_str(&format!("User {} stores its item at the position {} of the locker. ", user.id, to_ordinal(state.locker_snapshots.last().unwrap().get_item_idx_by_belongs(user.id) as u32)));
                     }
                     s
                 })()
@@ -138,18 +138,18 @@ pub fn start(mut stream: TcpStream) {
                     state.locker_snapshots.push(user_current_inmind_locker.clone());
                     let last_snapshot = state.locker_snapshots.last().unwrap();
                     let info = formatdoc! {"
-                        Locker is malfunctioning and randomly resetting the positions of the opaque boxes in the locker...
+                        Locker is malfunctioning and randomly resetting the positions of the items in the locker...
                         Locker has returned to normal.
-                        From the monitor, you can see the content of each opaque box in the locker: 
+                        From the monitor, you can see the content of the locker:
                         {}
                         ",
                         (|| {
                             let mut s = String::new();
                             for (i, item) in last_snapshot.items.iter().enumerate() {
                                 if let Some(item) = item {
-                                    s.push_str(&format!("The {} box stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
+                                    s.push_str(&format!("The position {} stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
                                 }else{
-                                    s.push_str(&format!("The {} box is empty.\n", to_ordinal(i as u32)));
+                                    s.push_str(&format!("The position {} is empty.\n", to_ordinal(i as u32)));
                                 }
                             }
                             s
@@ -167,9 +167,9 @@ pub fn start(mut stream: TcpStream) {
                             shuffle(&mut last_snapshot.items, &mut rng);
                             state.locker_snapshots.push(last_snapshot);
                             let info = formatdoc! {"
-                                Locker is malfunctioning and randomly resetting the positions of the opaque boxes in the locker...
+                                Locker is malfunctioning and randomly resetting the positions of the items in the locker...
                                 Locker has returned to normal.
-                                From the monitor, you can see the content of each opaque box in the locker: 
+                                From the monitor, you can see the content of the locker:
                                 {}
                                 ",
                                 (|| {
@@ -177,9 +177,9 @@ pub fn start(mut stream: TcpStream) {
                                     let last_snapshot = state.locker_snapshots.last().unwrap();
                                     for (i, item) in last_snapshot.items.iter().enumerate() {
                                         if let Some(item) = item {
-                                            s.push_str(&format!("The {} box stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
+                                            s.push_str(&format!("The position {} stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
                                         }else{
-                                            s.push_str(&format!("The {} box is empty.\n", to_ordinal(i as u32)));
+                                            s.push_str(&format!("The position {} box is empty.\n", to_ordinal(i as u32)));
                                         }
                                     }
                                     s
@@ -216,7 +216,7 @@ pub fn start(mut stream: TcpStream) {
                     true => {
                         // user can peep the status of the monitor
                         let info1 = format!(
-                            "User {} walks into your room and is peeping the monitor...\n",
+                            "User {} walks into the Room 3 and is observing the snapshot of the monitor...\n",
                             user_id
                         );
                         let user = state.users.get_mut_by_id(user_id).unwrap();
@@ -224,8 +224,13 @@ pub fn start(mut stream: TcpStream) {
                         let range =user.inmind_locker_state_idx..states_len;
                         let peeped_state_idx = range.choose(&mut rng).unwrap();
                         user.inmind_locker_state_idx = peeped_state_idx;
-                        let info2 =
-                            format!("User {} peeped the last {} state of the monitor and left the room.\n", user_id, states_len - peeped_state_idx -1);
+                        let mut info2 = String::from("");
+                        if peeped_state_idx == states_len - 1 {
+                            info2 = format!("User {} observed the snapshot which depicts the last state of the monitor and left the room.\n", user_id);
+                        } else {
+                            info2 =
+                                format!("User {} observed the snapshot which depicts the {}-to-last state of the monitor and left the room.\n", user_id, to_ordinal((states_len - peeped_state_idx) as u32))
+                        }
                         let info = format!("{}\n{}", info1, info2);
                         let data = Data::new(false, info);
                         write_to_stream(&mut stream, data).unwrap();
@@ -252,7 +257,7 @@ pub fn start(mut stream: TcpStream) {
                     Decision::TakeItem { from } => from,
                     _ => panic!("Invalid decision"),
                 };
-                let info1 = format!("User {} is coming to take his/her item...\n", user_id);
+                let info1 = format!("User {} is coming to Room 1 to take his/her item...\n", user_id);
                 // real item index in the locker
                 let real_item_idx = state.locker_snapshots.last().unwrap().get_item_idx_by_belongs(user_id);
                 // inmind item index in the locker
@@ -260,8 +265,8 @@ pub fn start(mut stream: TcpStream) {
                 let inmind_item_idx = state.locker_snapshots[inmind_locker_idx].get_item_idx_by_belongs(user_id);
                 // ask LLM to make prediction
                 let info2 = formatdoc! {"
-                    You should only answer the position of the box the user will go to retrieve their item (e.g. 0 for the 0th box, 1 for the 1st box, 2 for 2nd box...).
-                    For example, if you think the user will go to the 0th box to retrieve their item, you should only answer in single number '0'.
+                    You should only answer the position of the item the user will go to retrieve their item (e.g. 0 for the 0th, 1 for the 1st, 2 for 2nd...).
+                    For example, if you think the user will go to the position 0th to retrieve their item, you should only answer in single number '0'.
                     Please make your prediction:"
                 };
                 let info = format!("{}\n{}", info1, info2);
@@ -278,7 +283,7 @@ pub fn start(mut stream: TcpStream) {
                     && predicted_inmind_item_idx.unwrap() as usize == inmind_item_idx
                 {
                     let info = format!(
-                        "Your prediction is corret! Item in the {} box is exchanged with the correct item in the {} box. User {} successfully retrive the item from the correct position. You score a point!\n",
+                        "Your prediction is correct! Item in the position {} is exchanged with the correct item in the position {}. User {} successfully retrieved the item from the correct position. You score a point!\n",
                         to_ordinal(inmind_item_idx as u32),
                         to_ordinal(real_item_idx as u32),
                         user_id
@@ -288,7 +293,7 @@ pub fn start(mut stream: TcpStream) {
                     state.score += 1;
                 } else {
                     let info = format!(
-                        "Your prediction is wrong! Administrator is intervening... Item in the {} box is exchanged with the correct item in the {} box. User {} retrieve the item with the help of the administrator. You score no point.\n",
+                        "Your prediction is wrong! Administrator is intervening... Item in the position {} is exchanged with the correct item in the position {}. User {} retrieved the item with the help of the administrator. You score no point.\n",
                         to_ordinal(inmind_item_idx as u32),
                         to_ordinal(real_item_idx as u32),
                         user_id
