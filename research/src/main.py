@@ -13,11 +13,16 @@ load_dotenv(find_dotenv())
 async def main():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(('127.0.0.1', 8080))
-    player = Player("gemma", client_socket)
-    scores = await player.play(n_turns=2)
+    turns = 50
+    player = Player("vicuna:13b", client_socket)
+    scores = await player.play(n_turns=turns)
     print(scores)
-    print(np.sum(scores) / 2)
+    print(np.mean(scores) )
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+# Print Turns
+# Test Phi-3-14B, GPT3.5

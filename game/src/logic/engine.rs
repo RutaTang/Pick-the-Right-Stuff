@@ -36,11 +36,11 @@ struct State {
 
 /// Game Logic
 pub fn start(mut stream: TcpStream) {
-    let mut rng = StdRng::seed_from_u64(2);
+    let mut rng = StdRng::seed_from_u64(1);
 
     loop {
         // game settings/options
-        let user_n = 2;
+        let user_n = 3;
 
         // init the game
         let mut locker = Locker::new(user_n);
@@ -226,7 +226,7 @@ pub fn start(mut stream: TcpStream) {
                             let range = user.inmind_locker_state_idx..states_len;
                             let peeped_state_idx = range.choose(&mut rng).unwrap();
                             user.inmind_locker_state_idx = peeped_state_idx;
-                            let mut info2 = String::from("");
+                            let info2;
                             if peeped_state_idx == states_len - 1 {
                                 info2 = format!("User {} observed the snapshot which depicts the last state of the monitor and left the room.\n", user_id);
                             } else {
