@@ -19,8 +19,8 @@ fn main() {
                 println!("Invalid mode, choose either 'zero' or 'finite'!");
             }
         }
-        Some(cli::Commands::Client {}) => {
-            let client_thread = std::thread::spawn(client);
+        Some(cli::Commands::Client {port}) => {
+            let client_thread = std::thread::spawn(move || { client(port) });
             println!("Game client is running!");
             client_thread.join().expect("Failed to join client thread");
         }

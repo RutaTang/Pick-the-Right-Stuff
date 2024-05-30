@@ -34,8 +34,8 @@ pub fn server<F>(port: usize, handler: F)
 }
 
 // Client
-pub fn client() {
-    let mut stream = TcpStream::connect("127.0.0.1:8080").expect("Failed to connect to server");
+pub fn client(port: usize) {
+    let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port)).expect("Failed to connect to server");
 
     loop {
         let buffer = read_until_separator(&mut stream).unwrap_or_else(|_| {

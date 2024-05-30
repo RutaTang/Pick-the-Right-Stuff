@@ -18,5 +18,7 @@ pub enum Commands {
     },
      #[command(about = "Start the game client")]
     Client {
+         #[arg(short, long)]
+         port: usize,
     },
 }
