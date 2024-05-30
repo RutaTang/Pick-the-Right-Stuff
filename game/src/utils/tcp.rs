@@ -8,11 +8,12 @@ use std::fmt::Display;
 const SEPARATOR: u8 = 0x0a;
 
 // Server
-pub fn server<F>(handler: F)
+pub fn server<F>(port: usize, handler: F)
     where
         F: Fn(TcpStream) + Send + Sync + 'static,
 {
-    let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to bind address");
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).expect("Failed to bind address");
+    println!("Server listening on port {}", port);
     let handler = Arc::new(handler);
 
     for stream in listener.incoming() {
@@ -49,7 +50,7 @@ pub fn client() {
             let mut input = String::new();
             io::stdin().read_line(&mut input).unwrap();
             let data = Data::new(false, input.trim().to_string());
-            write_to_stream(&mut stream, data ).unwrap();
+            write_to_stream(&mut stream, data).unwrap();
         } else if response.content().contains("Game Over!") {
             println!("{}", response.content());
             break;

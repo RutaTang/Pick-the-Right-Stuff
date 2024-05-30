@@ -4,7 +4,7 @@ use rand::Rng;
 #[derive(Clone, Copy)]
 pub enum Decision {
     TakeItem { from: usize },
-    Peep { from: usize },
+    Observe { from: usize },
     None,
 }
 
@@ -12,7 +12,7 @@ impl Decision {
     pub fn rand_choose(rng: &mut impl Rng, from: usize) -> Decision {
         let decision = match rng.gen_range(0..2) {
             0 => Decision::TakeItem { from },
-            1 => Decision::Peep { from },
+            1 => Decision::Observe { from },
             2 => Decision::None,
             _ => panic!("Invalid decision"),
         };

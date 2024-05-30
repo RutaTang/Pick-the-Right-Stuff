@@ -18,9 +18,9 @@ use super::locker::Locker;
 /// Scene is an enum that holds the possible scenes in the game.
 enum Scene {
     Init,           // Start the game, tell the player the game instruction
-    DecisionMaking, // User should make a decision to (1) take item (2) peep (3) or nothing
+    DecisionMaking, // User should make a decision to (1) take item (2) observe (3) or nothing
     Shuffling,      // Shuffle the deck
-    Peeping,        // User peep the status of the monitor
+    Observing,        // User observe the status of the monitor
     Predicting,     // The player predict the user's action
     End,            // tell the final result, and game over
 }
@@ -47,7 +47,7 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
 
         loop {
             // game settings/options
-            let user_n = 3;
+            let user_n = 5;
 
             // init the game
             let mut locker = Locker::new(user_n);
@@ -75,7 +75,7 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                                 game_introduction = formatdoc! {"
                     Welcome to, {}!
 
-                    In this game, you will play the role of a warehouse manager. The warehouse contains two rooms. Room 1 is used for storing items, with each item stored in a certain position inside the opaque locker. You are situated in the Room 2, which contains a monitor that allows you to see the content of the opaque locker located in the Room 1 through the camera inside the opaque locker. Due to malfunctions in the locker system, it randomly resets the positions of the items in the opaque locker from time to time. To ensure that each user retrieves their stored item correctly, when a user comes to retrieve an item, you are required to predict the position of the item the user believes (the user will always retrieve their item based on the position they last believed). You only need to tell the system which locker position the user will go to retrieve their item and then the locker system will automatically swap the item at that location with the one belonging to the user. During the game, users may or may not enter the Room 2 to observe the monitor. By observe the monitor, users will update their belief about the position of their item.
+                    In this game, you will play the role of a warehouse manager. The warehouse contains two rooms. Room 1 is used for storing items, with each item stored in a certain position inside the opaque locker. You are situated in the Room 2, which contains a monitor that allows you to see the content of the opaque locker located in the Room 1 through the camera inside the opaque locker. Due to malfunctions in the locker system, it randomly resets the positions of the items in the opaque locker from time to time. To ensure that each user retrieves their stored item correctly, when a user comes to retrieve an item, you are required to predict the position of the item the user believes (the user will always retrieve their item based on the position they last believed). You only need to tell the system which position inside the locker the user will go to retrieve their item and then the locker system will automatically swap the item at that location with the one belonging to the user. During the game, users may or may not enter the Room 2 to observe the monitor. By observing the monitor, users will update their beliefs about the position of their item.
 
                     If a user successfully retrieves their item, you score a point and the item is removed from the locker.
                     If a user retrieves the wrong item, the item is returned, the user contacts the system administrator to take the correct item, and you score no points.
@@ -86,7 +86,7 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                                 game_introduction = formatdoc! {"
                     Welcome to, {}!
 
-                    In this game, you will play the role of a warehouse manager. The warehouse contains three rooms. Room 1 is used for storing items, with each item stored in a certain position inside the opaque locker. You are situated in the Room 2, which contains a monitor that allows you to see the content of the opaque locker located in the Room 1 through the camera inside the opaque locker. Due to malfunctions in the locker system, it randomly resets the positions of the items in the opaque locker from time to time. To ensure that each user retrieves their stored item correctly, when a user comes to retrieve an item, you are required to predict the position of the item the user believes (the user will always retrieve their item based on the position they last believed). You only need to tell the system which locker position the user will go to retrieve their item and then the locker system will automatically swap the item at that location with the one belonging to the user. Additionally, Room 3 contains a screen which will randomly show a certain previous snapshot of the monitor located in Room 2. During the game, users may or may not enter the Room 3 to observe a certain snapshot of the monitor. By observe the snapshot, users will update their belief about the position of their item.
+                    In this game, you will play the role of a warehouse manager. The warehouse contains three rooms. Room 1 is used for storing items, with each item stored in a certain position inside the opaque locker. You are situated in the Room 2, which contains a monitor that allows you to see the content of the opaque locker located in the Room 1 through the camera inside the opaque locker. Due to malfunctions in the locker system, it randomly resets the positions of the items in the opaque locker from time to time. To ensure that each user retrieves their stored item correctly, when a user comes to retrieve an item, you are required to predict the position of the item the user believes (the user will always retrieve their item based on the position they last believed). You only need to tell the system which position inside the locker the user will go to retrieve their item and then the locker system will automatically swap the item at that location with the one belonging to the user. Additionally, Room 3 contains a screen which will randomly show a certain previous snapshot of the monitor located in Room 2. During the game, users may or may not enter the Room 3 to observe a certain snapshot of the monitor. By observing the snapshot, users will update their beliefs about the position of their item.
 
                     If a user successfully retrieves their item, you score a point and the item is removed from the locker.
                     If a user retrieves the wrong item, the item is returned, the user contacts the system administrator to take the correct item, and you score no points.
@@ -126,7 +126,7 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                         // change to shuffling state
                         scene = Scene::Shuffling;
                     }
-                    // User should make a decision among (1) take item (2) peep (3) or nothing
+                    // User should make a decision among (1) take item (2) observe (3) or nothing
                     Scene::DecisionMaking => {
                         let user = state.users.users.choose(&mut rng).unwrap();
                         let decision: Decision = Decision::rand_choose(&mut rng, user.id);
@@ -134,14 +134,14 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
 
                         // randomly change to one of the following states
                         // 1. Shuffling (must if user want to take the item)
-                        // 2. Peeping (must if user want to peep the status of the monitor)
+                        // 2. observing (must if user want to observe the status of the monitor)
                         // 3. Change to Shuffling or DecisionMaking (if user do nothing)
                         match decision {
                             Decision::TakeItem { .. } => {
                                 scene = Scene::Predicting;
                             }
-                            Decision::Peep { .. } => {
-                                scene = Scene::Peeping;
+                            Decision::Observe { .. } => {
+                                scene = Scene::Observing;
                             }
                             Decision::None => match rng.gen_bool(0.5) {
                                 true => {
@@ -164,8 +164,8 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                             state.locker_snapshots.push(user_current_inmind_locker.clone());
                             let last_snapshot = state.locker_snapshots.last().unwrap();
                             let info = formatdoc! {"
-                        Locker is malfunctioning and randomly resetting the positions of the items in the locker...
-                        Locker has returned to normal.
+                        The locker is malfunctioning and randomly resetting the positions of the items in the locker...
+                        The locker has returned to normal.
                         From the monitor, you can see the content of the locker:
                         {}
                         ",
@@ -193,8 +193,8 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                                     shuffle(&mut last_snapshot.items, &mut rng);
                                     state.locker_snapshots.push(last_snapshot);
                                     let info = formatdoc! {"
-                                Locker is malfunctioning and randomly resetting the positions of the items in the locker...
-                                Locker has returned to normal.
+                                The locker is malfunctioning and randomly resetting the positions of the items in the locker...
+                                The locker has returned to normal.
                                 From the monitor, you can see the content of the locker:
                                 {}
                                 ",
@@ -230,10 +230,10 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                         }
                     }
                     // User observe the status of the monitor by directly observing (For Zero) or by snapshot (For Finite)
-                    Scene::Peeping => {
+                    Scene::Observing => {
                         let decision = state.user_decision;
                         let user_id = match decision {
-                            Decision::Peep { from } => from,
+                            Decision::Observe { from } => from,
                             _ => panic!("Invalid decision"),
                         };
                         let request_result: bool = rng.gen_bool(0.5);
@@ -259,14 +259,14 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                                         let user = state.users.get_mut_by_id(user_id).unwrap();
                                         let states_len = state.locker_snapshots.len();
                                         let range = user.inmind_locker_state_idx..states_len;
-                                        let peeped_state_idx = range.choose(&mut rng).unwrap();
-                                        user.inmind_locker_state_idx = peeped_state_idx;
+                                        let observed_state_idx = range.choose(&mut rng).unwrap();
+                                        user.inmind_locker_state_idx = observed_state_idx;
                                         let info2;
-                                        if peeped_state_idx == states_len - 1 {
-                                            info2 = format!("User {} observed the snapshot which depicts the last state of the monitor and left the room.\n", user_id);
+                                        if observed_state_idx == states_len - 1 {
+                                            info2 = format!("User {} observes the snapshot which depicts the last state of the monitor and leaves the room.\n", user_id);
                                         } else {
                                             info2 =
-                                                format!("User {} observed the snapshot which depicts the {}-to-last state of the monitor and left the room.\n", user_id, to_ordinal((states_len - peeped_state_idx) as u32))
+                                                format!("User {} observes the snapshot which depicts the {}-to-last state of the monitor and leaves the room.\n", user_id, to_ordinal((states_len - observed_state_idx) as u32))
                                         }
                                         let info = format!("{}\n{}", info1, info2);
                                         let data = Data::new(false, info);
@@ -304,8 +304,8 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                         let inmind_item_idx = state.locker_snapshots[inmind_locker_idx].get_item_idx_by_belongs(user_id);
                         // ask LLM to make prediction
                         let info2 = formatdoc! {"
-                    You should only answer the position of the item the user will go to retrieve their item (e.g. 0 for the 0th, 1 for the 1st, 2 for 2nd...).
-                    For example, if you think the user will go to the position 0th to retrieve their item, you should only answer in single number '0'.
+                    You should only answer the position of the item the user will go to retrieve their item (e.g. 0 for the 0th, 1 for the 1st, 2 for the 2nd...).
+                    For example, if you think the user will go to position 0th to retrieve their item, you should only answer in single number '0'.
                     Please make your prediction:"
                 };
                         let info = format!("{}\n{}", info1, info2);
@@ -332,7 +332,7 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                             state.score += 1;
                         } else {
                             let info = format!(
-                                "Your prediction is wrong! Administrator is intervening... Item in the position {} is exchanged with the correct item in the position {}. User {} retrieved the item with the help of the administrator. You score no point.\n",
+                                "Your prediction is wrong! The administrator is intervening... Item in the position {} is exchanged with the correct item in the position {}. User {} retrieved the item with the help of the administrator. You score no points.\n",
                                 to_ordinal(inmind_item_idx as u32),
                                 to_ordinal(real_item_idx as u32),
                                 user_id
@@ -341,11 +341,31 @@ pub fn start(mode: GameMode) -> Box<dyn Fn(TcpStream) + Send + Sync> {
                             write_to_stream(&mut stream, data).unwrap();
                         }
 
+                        state.locker_snapshots.push(state.locker_snapshots.last().unwrap().clone());
                         state.locker_snapshots.last_mut().unwrap().exchange_items(real_item_idx, inmind_item_idx);
                         state.locker_snapshots.last_mut().unwrap().remove_item(inmind_item_idx);
                         state.users.remove_by_id(user_id);
                         state.user_decision = Decision::None;
 
+                        // tell the LLM the current state of the locker
+                        let info = formatdoc! {"
+                                Now, from the monitor, you can see the content of the locker:
+                                {}
+                                ",
+                                (|| {
+                                    let mut s = String::new();
+                                    let last_snapshot = state.locker_snapshots.last().unwrap();
+                                    for (i, item) in last_snapshot.items.iter().enumerate() {
+                                        if let Some(item) = item {
+                                            s.push_str(&format!("The position {} stores the item of User {}.\n", to_ordinal(i as u32), item.belongs_to as u32));
+                                        }else{
+                                            s.push_str(&format!("The position {} box is empty.\n", to_ordinal(i as u32)));
+                                        }
+                                    }
+                                    s
+                                })()
+                            };
+                        write_to_stream(&mut stream, Data::new(false, info)).unwrap();
                         // randomly change to one of the following states
                         //1. Shuffling
                         //2. DecisionMaking
