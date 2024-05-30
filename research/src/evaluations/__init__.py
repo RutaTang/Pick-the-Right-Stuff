@@ -2,10 +2,9 @@ import json
 import re
 import socket
 
-from src.models.base_model import BaseModel
+from tqdm import tqdm
+
 from src.models.choose import choose_model
-from src.models.ollama_model import OllamaModel
-from src.models.openai_model import OpenAIModel
 from src.utils.tcp.helper import write_to_stream, read_until_separator, Data
 
 
@@ -17,7 +16,9 @@ class Player:
 
     async def play(self, n_turns: int) -> [int]:
         scores = []
-        for n_turn in range(n_turns):
+        for n_turn in tqdm(range(n_turns)):
+            print("=====================================")
+            print("Turn " + str(n_turn + 1) + " of " + str(n_turns) + "\n")
             model = choose_model(self.model_name)
             while True:
                 try:

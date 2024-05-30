@@ -15,12 +15,12 @@ async def main():
     # =====para=======
     mode = "zero"  # "zero" or "finite"
     model = "gemma"
+    turns = 100
 
     # ======run======
     port = 8080 if mode == "zero" else 8081
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(('127.0.0.1', port))
-    turns = 1
     player = Player(model, client_socket)
     scores = await player.play(n_turns=turns)
 
@@ -30,7 +30,7 @@ async def main():
     print(f"Mean Score: {mean_scores}")
     if os.path.exists("results") is False:
         os.makedirs("results")
-    with open(f"results/{model}.txt", "w") as f:
+    with open(f"results/{mode}_{model}_{turns}.txt", "w") as f:
         f.write(f"{mean_scores}\n")
 
 
