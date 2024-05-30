@@ -10,9 +10,13 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    #[command(about = "Start the game server or client ")]
-    Start {
+    #[command(about = "Start the game server")]
+    Serve {
+        /// The type of the game: "Zero", "Finite" or "Infinite"
         #[arg(short, long)]
         mode: String,
+    },
+     #[command(about = "Start the game client")]
+    Client {
     },
 }
