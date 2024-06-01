@@ -8,8 +8,8 @@ def choose_model(model_name: str) -> BaseModel:
         model = OpenAIModel()
         model.reconfig({"model": model_name})
         return model
-    elif model_name in ["llama3:70b-instruct", "gemma", "phi3:14b", "vicuna:13b", "qwen:72b", "qwen:32b", "qwen:14b",
-                        "qwen:7b"]:
+    elif model_name in ["llama3:70b-instruct", "qwen:72b-chat", "gemma:7b-instruct", "qwen:7b-chat",
+                        "mistral:7b-instruct"]:
         model = OllamaModel()
         model.reconfig({"model": model_name})
         return model
