@@ -64,9 +64,9 @@ The code of analyses can be found in the `research` directory.
 pip install -r requirements.txt
 ```
 
-2. Put your OPENAI key in the `.env` file (For GPT-3.5 Turbo):
+2. Put your OPENAI key in the `.env` file (for GPT-3.5 Turbo):
 
-```
+```dotenv
 OPENAI_KEY=your_openai_key
 ```
 
