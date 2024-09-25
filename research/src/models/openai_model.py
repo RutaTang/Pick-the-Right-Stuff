@@ -3,7 +3,6 @@ import os
 from typing import Dict
 from openai import OpenAI
 
-
 if __name__ == "__main__":
     from base_model import BaseModel
 else:
@@ -30,6 +29,7 @@ class OpenAIModel(BaseModel):
             messages=self.historical_messages,
             model=self.config["model"],
             max_tokens=self.config["max_tokens"],
+            temperature=self.config["temperature"],
         )
         chat_message = chat_completion.choices[0].message
         message = {

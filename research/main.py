@@ -15,8 +15,8 @@ load_dotenv(find_dotenv())
 
 async def main():
     # =====para=======
-    mode = "zero"  # "zero" or "finite"
-    model = "gpt-3.5-turbo"
+    mode = "finite"  # "zero" or "finite"
+    model = "llama3:70b-instruct"
     turns = 60
 
     # ======run======
