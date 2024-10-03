@@ -9,7 +9,7 @@ def choose_model(model_name: str) -> BaseModel:
         model.reconfig({"model": model_name})
         return model
     elif model_name in ["llama3:70b-instruct", "qwen:72b-chat", "gemma:7b-instruct", "qwen:7b-chat",
-                        "mistral:7b-instruct"]:
+                        "mistral:7b-instruct","phi3:3.8b-instruct"]:
         model = OllamaModel()
         model.reconfig({"model": model_name})
         return model

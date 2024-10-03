@@ -16,7 +16,7 @@ load_dotenv(find_dotenv())
 async def main():
     # =====para=======
     mode = "finite"  # "zero" or "finite"
-    model = "llama3:70b-instruct"
+    model = "phi3:3.8b-instruct"
     turns = 60
 
     # ======run======
