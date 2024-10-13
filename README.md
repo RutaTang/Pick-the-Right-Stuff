@@ -1,7 +1,7 @@
 # Pick the Right Stuff
 
 This repo contains the source code used for the research:
-***Zero, Finite, and Infinite Belief History of Theory of Mind Reasoning in Large Language Models***.
+***Knowledge-Free and Knowledge-Based Theory of Mind Reasoning in Large Language Models***.
 
 It consists of the following two parts:
 
@@ -24,13 +24,13 @@ TCP stream, so it is flexible for future work to use it to evaluate other LLMs o
 
 ### Run Server
 
-1. Run for Zero Belief History:
+1. Run for Knowledge-Free ToM Reasoning:
 
 ```bash
 cargo run -- serve -m zero
 ```
 
-2. Run for Finite Belief History:
+2. Run for Knowledge-Based ToM Reasoning:
 
 ```bash
 cargo run -- serve -m finite
@@ -40,13 +40,13 @@ cargo run -- serve -m finite
 
 _**Run Server before running the client.**_
 
-1. Run for Zero Belief History:
+1. Run for Knowledge-Free ToM Reasoning:
 
 ```bash
 cargo run -- client -p 8080
 ``` 
 
-2. Run for Finite Belief History:
+2. Run for Knowledge-Based ToM Reasoning:
 
 ```bash
 cargo run -- client -p 8081
